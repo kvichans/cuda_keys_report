@@ -1,0 +1,10 @@
+[info]
+title=Keymap Report
+desc=Shows HTML page with report of hotkeys in editor
+type=cudatext-plugin
+subdir=cuda_keymap_report
+
+[item1]
+section=commands
+caption=Keymap Report
+method=run

@@ -1,0 +1,10 @@
+
+1.0.2 (oct 2015)
++Plugins in compact view
++Common code with SynWrite
+
+1.0.1 (oct 2015)
++test API version
+
+1.0.0 (oct 2015)
+init
