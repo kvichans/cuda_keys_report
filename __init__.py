@@ -1,13 +1,14 @@
+''' Plugin for CudaText editor
+Authors:
+    Andrey Kvichansky    (kvichans on githab)
+Version:
+    '1.0.3 2015-11-24'
+'''
 #! /usr/bin/env python3
-# coding: cp1251
 
-import os
-import webbrowser
-import tempfile
+import os, webbrowser, tempfile, json, re, collections
 #import sw 		as app
 import cudatext as app
-import json
-import re
 
 #### Release ####
 app_name	= 'CudaText'
@@ -73,7 +74,7 @@ rpt_foot = '''
 
 def do_report(fn):
 	srs_dlm	= icase( app_name=='CudaText', ' * '
-					,app_name=='SynWrite', ' · '
+					,app_name=='SynWrite', ' Â· '
 					,'')
 	# Collect data
 	mods	= ['', 'Shift', 'Ctrl', 'Shift+Ctrl', 'Alt', 'Shift+Alt', 'Ctrl+Alt', 'Shift+Ctrl+Alt']
@@ -100,7 +101,7 @@ def do_report(fn):
 	n=0
 	while True:
 		# Cud (5	  ,'smth', 'Shift+Ctrl+F1', 'Alt+Q * Ctrl+T')
-		# Syn (5,'ctg','smth', 'Shift+Ctrl+F1', 'Alt+Q · Ctrl+T')
+		# Syn (5,'ctg','smth', 'Shift+Ctrl+F1', 'Alt+Q Â· Ctrl+T')
 		cmdinfo = app.app_proc(app.PROC_GET_COMMAND, str(n))
 		n += 1
 		if cmdinfo is None: break
@@ -332,15 +333,26 @@ def add_cud_plugins(cmdinfos, prfx, ctg):
 	#	},
 	# }}
 	plugs_json	= os.path.join(app.app_path(app.APP_DIR_SETTINGS), 'plugins.json')
-	plugs		= json_loads(open(plugs_json).read())
-	for nums in plugs["commands"].values():
-#		pass;				print('len(nums)={}'.format(len(nums)))
+	keys_json	= os.path.join(app.app_path(app.APP_DIR_SETTINGS), 'keys.json')
+	plugs		= json_loads(open(plugs_json).read(), object_pairs_hook=collections.OrderedDict)
+	keys		= json_loads(open(keys_json).read())
+#	for 	   nums in plugs["commands"].values():
+	for modul, nums in plugs["commands"].items():
+#		pass;					print('len(nums)={}'.format(len(nums)))
 		for dct_plug in nums.values():
-#			pass;			print('len(dct_plug)={}'.format(len(dct_plug)))
+			#pass;				print('dct_plug={}'.format(dct_plug))
+			#pass;				print('len(dct_plug)={}'.format(len(dct_plug)))
 #			if 'hotkey' in dct_plug:
-#				pass;		print('plug={}'.format(dct_plug['caption']))
+#				pass;			print('plug={}'.format(dct_plug['caption']))
 			cap		= dct_plug['caption']
-			cmdinfos += [(ctg, prfx+cap, dct_plug.get('hotkey', ''), '')]
+			plug_id	= modul+','+dct_plug.get('proc', '')
+			dct_keys= keys.get(plug_id, {})
+			cmdinfos += [(ctg
+						, prfx+plug_id
+						, ' * '.join(dct_keys.get('s1', []))
+						, ' * '.join(dct_keys.get('s2', []))
+						)]
+#			cmdinfos += [(ctg, prfx+cap, dct_plug.get('hotkey', ''), '')]
 	return cmdinfos
 
 #### Main ####
