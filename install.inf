@@ -7,4 +7,11 @@ subdir=cuda_keymap_report
 [item1]
 section=commands
 caption=Keymap Report
-method=run
+method=report_to_html
+menu=0
+
+[item2]
+section=commands
+caption=Keymap Report
+method=compact_to_tab
+menu=0

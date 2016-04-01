@@ -1,14 +1,15 @@
 ''' Plugin for CudaText editor
 Authors:
-    Andrey Kvichansky    (kvichans on githab)
+    Andrey Kvichansky    (kvichans on github)
 Version:
-    '1.0.4 2015-12-15'
+    '1.1.0 2016-04-01'
 '''
 #! /usr/bin/env python3
 
-import os, webbrowser, tempfile, json, re, collections
+import os, webbrowser, tempfile, json, re, collections, itertools
 #import sw 		as app
 import cudatext as app
+from    cudatext    import ed
 
 #### Release ####
 app_name	= 'CudaText'
@@ -72,31 +73,35 @@ rpt_foot = '''
 </html>
 '''
 
-def do_report(fn):
-	srs_dlm	= icase( app_name=='CudaText', ' * '
-					,app_name=='SynWrite', ' · '
-					,'')
-	# Collect data
-	mods	= ['', 'Shift', 'Ctrl', 'Shift+Ctrl', 'Alt', 'Shift+Alt', 'Ctrl+Alt', 'Shift+Ctrl+Alt']
-	btnsFn	= ["Esc", "Tab", "F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9", "F10", "F11", "F12"]
-	btnsIns	= ["Ins", "Del", "BkSp", "Enter", "Space", "Home", "End", "PgUp", "PgDn", "Left", "Right", "Up", "Down"]
-	btnsNum	= icase( app_name=='CudaText',
-			  ["NumDiv", "NumMul", "NumMinus", "NumPlus", "NumDot"
-			  ,"Num0", "Num1", "Num2", "Num3", "Num4", "Num5", "Num6", "Num7", "Num8", "Num9"]
-					,app_name=='SynWrite',
-			  [			 "Num *",  "Num -",    "Num +",   "Num Del"
-			  ,"Num0", "Num1", "Num2", "Num3", "Num4", "Num5", "Num6", "Num7", "Num8", "Num9"]
-					,[''])
-	btnsDig	= ["`", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "-", "="]
-	btnsLtrQ= ["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "[", "]"]
-	btnsLtrA= ["A", "S", "D", "F", "G", "H", "J", "K", "L", ";", "'", "\\"]
-	btnsLtrZ= ["Z", "X", "C", "V", "B", "N", "M", ",", ".", "/"]
-	btns	= btnsFn + btnsIns + btnsNum + btnsDig + btnsLtrQ + btnsLtrA + btnsLtrZ
-	keys2nms= {}
-	has_series = False
-	dblkeys = []
-	ctgs	= []
-	cmdinfos= []
+srs_dlm	= (	' * ' if app_name=='CudaText' else
+			' · ' if app_name=='SynWrite' else
+			'')
+mods	= ['', 'Shift', 'Ctrl', 'Shift+Ctrl', 'Alt', 'Shift+Alt', 'Ctrl+Alt', 'Shift+Ctrl+Alt']
+btnsFn	= ["Esc", "Tab", "F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9", "F10", "F11", "F12"]
+btnsIns	= ["Ins", "Del", "BkSp", "Enter", "Space", "Home", "End", "PgUp", "PgDn", "Left", "Right", "Up", "Down"]
+btnsNum	= (
+		  ["NumDiv", "NumMul", "NumMinus", "NumPlus", "NumDot"
+		  ,"Num0", "Num1", "Num2", "Num3", "Num4", "Num5", "Num6", "Num7", "Num8", "Num9"]
+			if app_name=='CudaText' else
+		  [			 "Num *",  "Num -",    "Num +",   "Num Del"
+		  ,"Num0", "Num1", "Num2", "Num3", "Num4", "Num5", "Num6", "Num7", "Num8", "Num9"]
+			if app_name=='SynWrite' else
+		  ['']
+		  )
+btnsDig	= ["`", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "-", "="]
+btnsLtrQ= ["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "[", "]"]
+btnsLtrA= ["A", "S", "D", "F", "G", "H", "J", "K", "L", ";", "'", "\\"]
+btnsLtrZ= ["Z", "X", "C", "V", "B", "N", "M", ",", ".", "/"]
+btns	= btnsFn + btnsIns + btnsNum + btnsDig + btnsLtrQ + btnsLtrA + btnsLtrZ
+
+def collect_data():
+	''' Collect data
+	'''
+	keys2nms	= {}
+	has_series	= False
+	dblkeys		= []
+	ctgs		= []
+	cmdinfos	= []
 
 	n=0
 	while True:
@@ -164,6 +169,20 @@ def do_report(fn):
 			,	name, keys
 			,	mods, btns, keys2nms, dblkeys
 			)
+	
+	return 	(keys2nms
+			,has_series
+			,dblkeys
+			,ctgs
+			,cmdinfos)
+	#def collect_data
+
+def do_report(fn):
+	(keys2nms
+	,has_series
+	,dblkeys
+	,ctgs
+	,cmdinfos)	= collect_data()
 
 	# Fill reports
 	acmd_ank	= '<a name="all-cmds"/>All commands'
@@ -304,6 +323,24 @@ def 	compact_view(f, keys2nms, dblkeys, mods, btns, skip_no_mod=False, skip_sh_m
 		f.write('</tr>\n')
 	f.write('</table><br/>\n')
 
+def compact_str_view(keys2nms, dblkeys, mods, btns, skip_no_mod=False, skip_sh_mod=False):
+	# Analize
+	wd_lft	= max(len(mod) for mod in mods)
+	# Fill
+	s	= '·'.join([' '*wd_lft]+btns) + '·'
+	for mod in mods:
+		if skip_no_mod and 0==len(mod)	: continue
+		if skip_sh_mod and mod=='Shift'	: continue
+		s	+= '\n' + mod.rjust(wd_lft)+'·'
+		for btn in btns:
+			keys = keys4mod_btn(mod, btn)
+			names= keys2nms.get(keys, '')
+			sign = ''.join((icase(name.startswith('plugin:'), 'P', 'C') for name in names))
+			sign = sign.center(len(btn))
+			s	+= sign + '·'
+	s	+= '\n\n'
+	return s
+
 def save_btn_mod_name(btn, mod, name, keys, mods, btns, keys2nms, dblkeys):
 	if mod not in mods:
 		mods += [mod]
@@ -332,32 +369,63 @@ def add_cud_plugins(cmdinfos, prfx, ctg):
 	#		"1":{"caption":"***", "hotkey":"***"},
 	#	},
 	# }}
-	plugs_json	= os.path.join(app.app_path(app.APP_DIR_SETTINGS), 'plugins.json')
+#	plugs_json	= os.path.join(app.app_path(app.APP_DIR_SETTINGS), 'plugins.json')
 	keys_json	= os.path.join(app.app_path(app.APP_DIR_SETTINGS), 'keys.json')
-	plugs		= json_loads(open(plugs_json).read(), object_pairs_hook=collections.OrderedDict)
+#	plugs		= json_loads(open(plugs_json).read(), object_pairs_hook=collections.OrderedDict)
 	keys		= json_loads(open(keys_json).read())
-#	for 	   nums in plugs["commands"].values():
-	for modul, nums in plugs["commands"].items():
-#		pass;					print('len(nums)={}'.format(len(nums)))
-		for dct_plug in nums.values():
-			#pass;				print('dct_plug={}'.format(dct_plug))
-			#pass;				print('len(dct_plug)={}'.format(len(dct_plug)))
-#			if 'hotkey' in dct_plug:
-#				pass;			print('plug={}'.format(dct_plug['caption']))
-			cap		= dct_plug['caption']
-			plug_id	= modul+','+dct_plug.get('proc', '')
-			dct_keys= keys.get(plug_id, {})
-			cmdinfos += [(ctg
-						, prfx+plug_id
-						, ' * '.join(dct_keys.get('s1', []))
-						, ' * '.join(dct_keys.get('s2', []))
-						)]
-#			cmdinfos += [(ctg, prfx+cap, dct_plug.get('hotkey', ''), '')]
+	for n in itertools.count():
+		if not	  app.app_proc(app.PROC_GET_COMMAND_PLUGIN, str(n)): break#for n
+		(cap
+		,modul
+		,meth
+		,par
+		,lxrs)	= app.app_proc(app.PROC_GET_COMMAND_PLUGIN, str(n))
+		plug_id	= modul+','+meth+(','+par if par else '')
+		dct_keys= keys.get(plug_id, {})
+		cmdinfos += [(ctg
+					, prfx+cap
+					, ' * '.join(dct_keys.get('s1', []))
+					, ' * '.join(dct_keys.get('s2', []))
+					)]
+       #for n
 	return cmdinfos
+	#def add_cud_plugins(cmdinfos, prfx, ctg):
+
+def get_str_report(parts='compact|conflicts'):
+	(keys2nms
+	,has_series
+	,dblkeys
+	,ctgs
+	,cmdinfos)	= collect_data()
+
+	# Fill reports
+	rpt		= ''
+	if 'conflicts' in parts and dblkeys:
+		wd_0	= max(len(keys) 				for keys in dblkeys)
+		wd_1	= max(len(keys2nms[keys][0])	for keys in dblkeys)
+		wd_2	= max(len(keys2nms[keys][1])	for keys in dblkeys)
+		rpt		+= 'Conflicts'
+		rpt		+= '\n'+'Keys'.center(wd_0)	+' · '+'Command 1'.center(wd_1)		 +' · '+'Command 2'.center(wd_2)		+' ·'
+		for keys in dblkeys:
+			rpt	+= '\n'+keys.center(wd_0)	+' · '+keys2nms[keys][0].center(wd_1)+' · '+keys2nms[keys][1].center(wd_2)	+' ·'
+
+	rpt		+= '\n'
+	rpt		+= '\n'
+	if 'compact' in parts:
+		rpt	+= compact_str_view(keys2nms, dblkeys, mods, btnsFn)
+		rpt	+= compact_str_view(keys2nms, dblkeys, mods, btnsIns)
+		rpt	+= compact_str_view(keys2nms, dblkeys, mods, btnsNum, True)
+		rpt	+= compact_str_view(keys2nms, dblkeys, mods, btnsDig, True, True)
+		rpt	+= compact_str_view(keys2nms, dblkeys, mods, btnsLtrQ, True, True)
+		rpt	+= compact_str_view(keys2nms, dblkeys, mods, btnsLtrA, True, True)
+		rpt	+= compact_str_view(keys2nms, dblkeys, mods, btnsLtrZ, True, True)
+
+	return rpt
+	#def get_str_report
 
 #### Main ####
 class Command:
-	def run(self):
+	def report_to_html(self):
 		if app_name=='CudaText' and app.app_api_version()<'1.0.105':
 			app.msg_box('Plugin needs newer app version', app.MB_OK)
 			return
@@ -366,6 +434,15 @@ class Command:
 		do_report(htm_file)
 		webbrowser.open_new_tab('file://'+htm_file)
 		app.msg_status('Opened browser with file '+htm_file)
+
+	def compact_to_tab(self):
+		plain_rpt	= get_str_report()
+		if False:pass
+		elif app_name=='CudaText':
+			app.file_open('')
+			ed.set_text_all(plain_rpt)
+		elif app_name=='SynWrite':
+			pass
 
 #### Utils ####
 def json_loads(s, **kw):
@@ -399,5 +476,6 @@ if __name__ == '__main__':
 	pass;						print('OK')
 
 """ TODO
-[ ][kv-kv][09dec15] Output plain text to new tab
+[+][kv-kv][09dec15] Output plain text to new tab
+[+][kv-kv][15dec15] New types: macro, exttool
 """
